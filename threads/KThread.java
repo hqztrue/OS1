@@ -1,6 +1,7 @@
 package nachos.threads;
 
 import nachos.machine.*;
+import java.util.concurrent.Semaphore;
 
 /**
  * A KThread is a thread that can be used to execute Nachos kernel code. Nachos
@@ -193,7 +194,7 @@ public class KThread {
 
 
 	currentThread.status = statusFinished;
-	
+	join_sem.V();
 	sleep();
     }
 
@@ -276,7 +277,7 @@ public class KThread {
 	Lib.debug(dbgThread, "Joining to thread: " + toString());
 
 	Lib.assertTrue(this != currentThread);
-
+	join_sem.P();
     }
 
     /**
@@ -400,11 +401,19 @@ public class KThread {
     /**
      * Tests whether this module is working.
      */
-    public static void selfTest() {
+    /*public static void selfTest() {
 	Lib.debug(dbgThread, "Enter KThread.selfTest");
 	
 	new KThread(new PingTest(1)).setName("forked thread").fork();
 	new PingTest(0).run();
+    }*/
+	public static void selfTest() {
+	Lib.debug(dbgThread, "Enter KThread.selfTest");
+	
+	KThread1 = new KThread(new PingTest(1)).setName("forked thread").fork();
+	KThread2 = new KThread(new PingTest(0)).setName("forked thread2").fork();
+    KThread1.join();
+    KThread2.join();
     }
 
     private static final char dbgThread = 't';
@@ -444,4 +453,5 @@ public class KThread {
     private static KThread currentThread = null;
     private static KThread toBeDestroyed = null;
     private static KThread idleThread = null;
+	private Semaphore join_sem = new Semaphore(0);
 }
