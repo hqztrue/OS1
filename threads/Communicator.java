@@ -53,20 +53,21 @@ public class Communicator {
      */    
     public int listen() {
 		lock.acquire();
-		++nlistener;
 		while (can_write){
+			++nlistener;
 			speaker.wake();
 			listener.sleep();
+			--nlistener;
 		}
 		int word = word_trans;
 		can_write = true;
-		--nlistener;
+		speaker.wake();
 		lock.release();
 		return word;
     }
 	private Lock lock;
 	private Condition speaker;
 	private Condition listener;
-	private int word_trans, nlistener, nspeaker;
+	private int word_trans, nlistener, nspeaker, ;
 	private boolean can_write;
 }
