@@ -1,6 +1,9 @@
 package nachos.threads;
 
 import nachos.machine.*;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.*;
 
 /**
  * Uses the hardware timer to provide preemption, and to allow threads to sleep
@@ -15,6 +18,7 @@ public class Alarm {
      * alarm.
      */
     public Alarm() {
+	waitQueue = new LinkedList<Semaphore>();
 	Machine.timer().setInterruptHandler(new Runnable() {
 		public void run() { timerInterrupt(); }
 	    });
@@ -26,8 +30,58 @@ public class Alarm {
      * thread to yield, forcing a context switch if there is another thread
      * that should be run.
      */
+
+    static class Testclass implements Runnable{
+        int which;
+        long time;
+        Testclass(int which, long time){
+            this.which = which;
+            this.time = time;
+        }
+        public void run(){
+            long begin = Machine.timer().getTime();
+            ThreadedKernel.alarm.waitUntil(this.time);
+            long end = Machine.timer().getTime();
+            if(end - begin<this.time){
+                Lib.debug('x', begin + " " + end);
+            }
+	        Lib.assertTrue(end - begin >= this.time);
+        }
+    }
+
+    public static void selfTest(){
+        Lib.debug('x', "Test alarm");
+        KThread thread1 = new KThread(new Testclass(0, 100)).setName("a");
+        KThread thread2 = new KThread(new Testclass(0, 200)).setName("b");
+        KThread thread3 = new KThread(new Testclass(0, 300)).setName("c");
+        KThread thread4 = new KThread(new Testclass(0, 400)).setName("d");
+        thread1.fork();
+        thread2.fork();
+        thread3.fork();
+        thread4.fork();
+        thread1.join();
+        thread2.join();
+        thread3.join();
+        thread4.join();
+    }
+
     public void timerInterrupt() {
-	KThread.currentThread().yield();
+	//KThread.currentThread().yield();
+    Lib.debug('x', "timeInterrupt " + KThread.currentThread().getName());
+    Lib.debug('x', "timeInterrupt " + lock.getLockHolder());
+	lock.acquire();
+	Iterator<Semaphore> it = waitQueue.iterator();
+	Iterator<Long> it1 = waitTimeQueue.iterator();
+	while (it.hasNext()){
+		Long time = it1.next();
+		Semaphore waiter = it.next();
+		if (Machine.timer().getTime() > time){
+			waiter.V();
+			it1.remove();
+			it.remove();
+		}
+	}
+	lock.release();
     }
 
     /**
@@ -46,8 +100,22 @@ public class Alarm {
      */
     public void waitUntil(long x) {
 	// for now, cheat just to get something working (busy waiting is bad)
-	long wakeTime = Machine.timer().getTime() + x;
+	/*long wakeTime = Machine.timer().getTime() + x;
 	while (wakeTime > Machine.timer().getTime())
 	    KThread.yield();
+	*/
+        Lib.debug('x', lock.getLockHolder());
+	lock.acquire();
+        Lib.debug('x', lock.getLockHolder());
+	Semaphore waiter = new Semaphore(0);
+	waitQueue.add(waiter);
+	waitTimeQueue.add(Machine.timer().getTime() + x);
+	lock.release();
+	waiter.P();
     }
+	private Lock lock = new Lock();
+	private List<Semaphore> waitQueue = new LinkedList<Semaphore>();
+	private List<Long> waitTimeQueue = new LinkedList<Long>();
 }
+
+
