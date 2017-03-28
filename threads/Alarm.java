@@ -30,7 +30,8 @@ public class Alarm {
      */
     public void timerInterrupt() {
 	//KThread.currentThread().yield();
-	lock.acquire();
+	//lock.acquire();
+	boolean intStatus = Machine.interrupt().disable();
 	Iterator<Semaphore> it = waitQueue.iterator();
 	Iterator<int> it1 = waitTimeQueue.iterator();
 	while (it.hasNext()){
@@ -42,7 +43,8 @@ public class Alarm {
 			it.remove();
 		}
 	}
-	lock.release();
+	Machine.interrupt().restore(intStatus);
+	//lock.release();
     }
 
     /**
@@ -65,14 +67,16 @@ public class Alarm {
 	while (wakeTime > Machine.timer().getTime())
 	    KThread.yield();
 	*/
-	lock.acquire();
+	//lock.acquire();
+	boolean intStatus = Machine.interrupt().disable();
 	Semaphore waiter = new Semaphore(0);
 	waitQueue.add(waiter);
 	waitTimeQueue.add(Machine.timer().getTime() + x);
-	lock.release();
+	//lock.release();
+	Machine.interrupt().restore(intStatus);
 	waiter.P();
     }
-	private Lock lock = new Lock();
+	//private Lock lock = new Lock();
 	private List<Semaphore> waitQueue;
 	private List<int> waitTimeQueue;
 }
