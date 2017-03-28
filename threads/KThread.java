@@ -494,6 +494,7 @@ public class KThread {
         Lib.debug(dbgThread, "Enter KThread.selfTest");
         testCondition();
         Alarm.selfTest();
+        Communicator.selfTest();
     }
 
     private static final char dbgThread = 't';
