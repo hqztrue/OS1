@@ -1,6 +1,7 @@
 package nachos.threads;
 
 import nachos.machine.*;
+import java.util.LinkedList;
 
 /**
  * Uses the hardware timer to provide preemption, and to allow threads to sleep
@@ -15,6 +16,7 @@ public class Alarm {
      * alarm.
      */
     public Alarm() {
+	waitQueue = new LinkedList<Semaphore>();
 	Machine.timer().setInterruptHandler(new Runnable() {
 		public void run() { timerInterrupt(); }
 	    });
@@ -27,7 +29,20 @@ public class Alarm {
      * that should be run.
      */
     public void timerInterrupt() {
-	KThread.currentThread().yield();
+	//KThread.currentThread().yield();
+	lock.acquire();
+	Iterator<Semaphore> it = waitQueue.iterator();
+	Iterator<int> it1 = waitTimeQueue.iterator();
+	while (it.hasNext()){
+		int time = it1.next();
+		Semaphore waiter = it.next();
+		if (Machine.timer().getTime() > time){
+			waiter.V();
+			it1.remove();
+			it.remove();
+		}
+	}
+	lock.release();
     }
 
     /**
@@ -46,8 +61,20 @@ public class Alarm {
      */
     public void waitUntil(long x) {
 	// for now, cheat just to get something working (busy waiting is bad)
-	long wakeTime = Machine.timer().getTime() + x;
+	/*long wakeTime = Machine.timer().getTime() + x;
 	while (wakeTime > Machine.timer().getTime())
 	    KThread.yield();
+	*/
+	lock.acquire();
+	Semaphore waiter = new Semaphore(0);
+	waitQueue.add(waiter);
+	waitTimeQueue.add(Machine.timer().getTime() + x);
+	lock.release();
+	waiter.P();
     }
+	private Lock lock = new Lock();
+	private List<Semaphore> waitQueue;
+	private List<int> waitTimeQueue;
 }
+
+
