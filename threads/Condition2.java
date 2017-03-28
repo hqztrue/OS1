@@ -2,6 +2,7 @@ package nachos.threads;
 
 import nachos.machine.*;
 import java.util.LinkedList;
+import java.util.List;
 
 /**
  * An implementation of condition variables that disables interrupt()s for
@@ -50,8 +51,8 @@ public class Condition2 {
 	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
 	boolean intStatus = Machine.interrupt().disable();
 	KThread nextThread;
-	if ((nextThread = readyQueue.nextThread())!=null){
-		thread.ready();
+	if ((nextThread = waitQueue.nextThread())!=null){
+		nextThread.ready();
 	}
 	Machine.interrupt().restore(intStatus);
     }
@@ -64,8 +65,8 @@ public class Condition2 {
 	Lib.assertTrue(conditionLock.isHeldByCurrentThread());
 	boolean intStatus = Machine.interrupt().disable();
 	KThread nextThread;
-	while ((nextThread = readyQueue.nextThread())!=null){
-		thread.ready();
+	while ((nextThread = waitQueue.nextThread())!=null){
+		nextThread.ready();
 	}
 	Machine.interrupt().restore(intStatus);
     }

@@ -1,7 +1,8 @@
 package nachos.threads;
 
 import nachos.machine.*;
-import java.util.concurrent.Semaphore;
+import java.util.*;
+//import java.util.concurrent.Semaphore;
 
 /**
  * A KThread is a thread that can be used to execute Nachos kernel code. Nachos
@@ -194,7 +195,7 @@ public class KThread {
 
 
 	currentThread.status = statusFinished;
-	join_sem.V();
+	currentThread.join_sem.V();
 	sleep();
     }
 
@@ -274,10 +275,12 @@ public class KThread {
      * thread.
      */
     public void join() {
-	Lib.debug(dbgThread, "Joining to thread: " + toString());
+        Lib.debug(dbgThread, "Joining to thread: " + toString());
 
-	Lib.assertTrue(this != currentThread);
-	join_sem.P();
+        Lib.assertTrue(this != currentThread);
+        join_sem.P();
+
+        System.out.println("*** thread " + name + " join ");
     }
 
     /**
@@ -401,13 +404,96 @@ public class KThread {
     /**
      * Tests whether this module is working.
      */
-    /*public static void selfTest() {
-	Lib.debug(dbgThread, "Enter KThread.selfTest");
-	
-	KThread1 = new KThread(new PingTest(1)).setName("forked thread").fork();
-	KThread2 = new KThread(new PingTest(0)).setName("forked thread2").fork();
-    KThread1.join();
-    KThread2.join();
+
+    static class BoundedBuffer {  
+        final Lock lock = new Lock();//锁对象  
+        final Condition2 notFull  = new Condition2(lock);
+        final Condition2 notEmpty = new Condition2(lock);
+
+        final int[] items = new int[10];//缓存队列  
+        int putptr, takeptr, count;  
+
+        public void put(int x){  
+            lock.acquire();  
+            int ans = 0;
+            while (count == items.length){
+                notFull.sleep();
+                ans += 1;
+            }
+            Lib.assertTrue(ans<=1);
+            items[putptr] = x;
+            if (++putptr == items.length)
+                putptr = 0;
+            ++count;  
+            notEmpty.wake();
+            lock.release();  
+        }  
+
+        public int take(){  
+            lock.acquire();  
+            int ans = 0;
+            while (count == 0){
+                notEmpty.sleep();
+                ans += 1;
+            }
+            int x = items[takeptr];
+            if (++takeptr == items.length) takeptr = 0;
+            --count;//个数--  
+            notFull.wake();
+            lock.release();  
+            return x;
+        }   
+    }  
+
+    private static class PutTakeTester implements Runnable {
+        int which;
+        BoundedBuffer tester;
+        PutTakeTester(int which, BoundedBuffer tester) {
+            this.which = which;
+            this.tester = tester;
+        }
+
+        public void run() {
+            if(which == 0){
+                for(int i = 0; i<20; ++i){
+                    System.out.println(which + " put " + i);
+                    tester.put(i);
+                }
+            }
+            else{
+                for(int i = 0; i<2; ++i)
+                    System.out.println(which + " take " + tester.take());
+            }
+        }
+    }
+    public static void testCondition(){
+        BoundedBuffer tester = new BoundedBuffer();
+        KThread KThread1 = new KThread(new PutTakeTester(0, tester)).setName("forked thread");
+        ArrayList<KThread> a = new ArrayList<KThread>();
+        for(int i = 0;i<10;++i){
+            a.add(new KThread(new PutTakeTester(i+1, tester)).setName("forked thread2"));
+            a.get(i).fork();
+        }
+        KThread1.fork();
+        for(int i = 0;i<10;++i)
+            a.get(i).join();
+        KThread1.join();
+    }
+
+    public static void testJoing(){
+
+        KThread KThread1 = new KThread(new PingTest(1)).setName("forked thread");
+        KThread KThread2 = new KThread(new PingTest(0)).setName("forked thread2");
+        KThread1.fork();
+        KThread2.fork();
+        KThread1.join();
+        KThread2.join();
+    }
+
+    public static void selfTest() {
+        Lib.debug(dbgThread, "Enter KThread.selfTest");
+        testCondition();
+        Alarm.selfTest();
     }
 
     private static final char dbgThread = 't';

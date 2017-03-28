@@ -26,6 +26,14 @@ public class Lock {
     public Lock() {
     }
 
+    public String getLockHolder() {
+        if(lockHolder!=null)
+            return lockHolder.getName();
+        else
+            return null;
+    }
+
+
     /**
      * Atomically acquire this lock. The current thread must not already hold
      * this lock.
