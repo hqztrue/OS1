@@ -1,6 +1,7 @@
 package nachos.threads;
 
 import nachos.machine.*;
+import java.util.*;
 //import java.util.concurrent.Semaphore;
 
 /**
@@ -419,7 +420,7 @@ public class KThread {
                 notFull.sleep();
                 ans += 1;
             }
-            System.out.println("while time " + ans);
+            Lib.assertTrue(ans<=1);
             items[putptr] = x;
             if (++putptr == items.length)
                 putptr = 0;
@@ -435,7 +436,6 @@ public class KThread {
                 notEmpty.sleep();
                 ans += 1;
             }
-            System.out.println("while time " + ans);
             int x = items[takeptr];
             if (++takeptr == items.length) takeptr = 0;
             --count;//个数--  
@@ -461,19 +461,23 @@ public class KThread {
                 }
             }
             else{
-                for(int i = 0; i<20; ++i)
+                for(int i = 0; i<2; ++i)
                     System.out.println(which + " take " + tester.take());
             }
         }
     }
     public static void testCondition(){
         BoundedBuffer tester = new BoundedBuffer();
-        KThread KThread1 = new KThread(new PutTakeTester(1, tester)).setName("forked thread");
-        KThread KThread2 = new KThread(new PutTakeTester(0, tester)).setName("forked thread2");
+        KThread KThread1 = new KThread(new PutTakeTester(0, tester)).setName("forked thread");
+        ArrayList<KThread> a = new ArrayList<KThread>();
+        for(int i = 0;i<10;++i){
+            a.add(new KThread(new PutTakeTester(i+1, tester)).setName("forked thread2"));
+            a.get(i).fork();
+        }
         KThread1.fork();
-        KThread2.fork();
+        for(int i = 0;i<10;++i)
+            a.get(i).join();
         KThread1.join();
-        KThread2.join();
     }
 
     public static void testJoing(){
@@ -489,6 +493,7 @@ public class KThread {
     public static void selfTest() {
         Lib.debug(dbgThread, "Enter KThread.selfTest");
         testCondition();
+        Alarm.selfTest();
     }
 
     private static final char dbgThread = 't';

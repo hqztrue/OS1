@@ -67,9 +67,8 @@ public class Alarm {
 
     public void timerInterrupt() {
 	//KThread.currentThread().yield();
-    Lib.debug('x', "timeInterrupt " + KThread.currentThread().getName());
-    Lib.debug('x', "timeInterrupt " + lock.getLockHolder());
-	lock.acquire();
+	//lock.acquire();
+	boolean intStatus = Machine.interrupt().disable();
 	Iterator<Semaphore> it = waitQueue.iterator();
 	Iterator<Long> it1 = waitTimeQueue.iterator();
 	while (it.hasNext()){
@@ -81,7 +80,8 @@ public class Alarm {
 			it.remove();
 		}
 	}
-	lock.release();
+	Machine.interrupt().restore(intStatus);
+	//lock.release();
     }
 
     /**
@@ -104,16 +104,15 @@ public class Alarm {
 	while (wakeTime > Machine.timer().getTime())
 	    KThread.yield();
 	*/
-        Lib.debug('x', lock.getLockHolder());
-	lock.acquire();
-        Lib.debug('x', lock.getLockHolder());
+	//lock.acquire();
+	boolean intStatus = Machine.interrupt().disable();
 	Semaphore waiter = new Semaphore(0);
 	waitQueue.add(waiter);
 	waitTimeQueue.add(Machine.timer().getTime() + x);
-	lock.release();
+	//lock.release();
+	Machine.interrupt().restore(intStatus);
 	waiter.P();
     }
-	private Lock lock = new Lock();
 	private List<Semaphore> waitQueue = new LinkedList<Semaphore>();
 	private List<Long> waitTimeQueue = new LinkedList<Long>();
 }
