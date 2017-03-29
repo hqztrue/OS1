@@ -23,16 +23,16 @@ public class Boat
         begin(0, 2, b);
 
         System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
+        begin(1, 2, b);
+
+        System.out.println("\n ***Testing Boats with 3 children, 3 adults***");
         begin(3, 3, b);
 
-//        System.out.println("\n ***Testing Boats with 3 children, 3 adults***");
-//        begin(3, 3, b);
+        System.out.println("\n ***Testing Boats with 5 children, 4 adults***");
+        begin(4, 5, b);
 
-//        System.out.println("\n ***Testing Boats with 5 children, 4 adults***");
-//        begin(5, 4, b);
-
-//        System.out.println("\n ***Testing Boats with 20 children, 20 adults***");
-//        begin(20, 20, b);
+        System.out.println("\n ***Testing Boats with 20 children, 20 adults***");
+        begin(10, 10, b);
     }
 
     public static void begin( int adults, int children, BoatGrader b )
@@ -70,12 +70,17 @@ public class Boat
 
         numChildAToSee = 0;
         numAdultAToSee = 0;
+        numChildBToSee = 0;
+        int A = numChildA;
+        int B = numAdultA;
+        numAdultBToSee = 0;
         for(int j =0; j<adults + children; ++j){
             t[j].fork();
         }
 
         lock.acquire();
         while(numAdultA>0 || numChildA>0){
+//            System.out.println(A + " " + B + " " + numChildAToSee + " " + numChildBToSee + " " + numAdultAToSee + " " + numAdultBToSee);
             waitFinal.wakeAll();
             waitC.sleep();
         }
@@ -91,10 +96,8 @@ public class Boat
     }
 
     static void test(){
-        System.out.println("sleep");
         waitC.wakeAll();
         waitFinal.sleep();
-        System.out.println("wake");
     }
 
     static void AdultItinerary()
@@ -135,7 +138,6 @@ indicates that an adult has rowed the boat across to Molokai
                 side = 1;
             }
             else if(side == 1){
-                System.out.println((boatSide !=1 || numChildBToSee>=1));
                 while((boatSide !=1 || numChildBToSee>=1) && gameover == 0){
                     waitB.sleep();
                     test();
