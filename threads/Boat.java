@@ -5,23 +5,24 @@ public class Boat
 {
     static BoatGrader bg;
     static int numChildA, numAdultA, numChildAToSee, numAdultAToSee, numChildBToSee, numAdultBToSee;
-    static int boatSide, start = 0;
+    static int boatSide, gameover = 0;
     //boatSide 0: A, 1: B ,2:in Use
 
     final static Lock lock = new Lock();//lock of A
-    final static Condition waitA  = new Condition(lock);
-    final static Condition waitB  = new Condition(lock);
-    final static Condition waitRider  = new Condition(lock);
+    final static Condition2 waitA  = new Condition2(lock);
+    final static Condition2 waitB  = new Condition2(lock);
+    final static Condition2 waitRider  = new Condition2(lock);
+    final static Condition2 waitFinal  = new Condition2(lock);
 
     public static void selfTest()
     {
         BoatGrader b = new BoatGrader();
 
-        System.out.println("\n ***Testing Boats with only 2 children***");
-        begin(0, 2, b);
+        //System.out.println("\n ***Testing Boats with only 2 children***");
+        //begin(0, 2, b);
 
-        //System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
-        //begin(1, 2, b);
+        System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
+        begin(5, 4, b);
 
         //System.out.println("\n ***Testing Boats with 3 children, 3 adults***");
         //begin(3, 3, b);
@@ -29,13 +30,12 @@ public class Boat
         //System.out.println("\n ***Testing Boats with 10 children, 4 adults***");
         //begin(10, 4, b);
 
-        System.out.println("\n ***Testing Boats with 20 children, 20 adults***");
-        begin(20, 20, b);
+//        System.out.println("\n ***Testing Boats with 20 children, 20 adults***");
+//        begin(20, 20, b);
     }
 
     public static void begin( int adults, int children, BoatGrader b )
     {
-        start = 0;
         boatSide = 0;
         // Store the externally generated autograder in a class
         // variable to be accessible by children.
@@ -72,11 +72,19 @@ public class Boat
 
         lock.acquire();
         while(numAdultA>0 || numChildA>0){
+            //System.out.println(numAdultA + " " + numChildA);
+            waitFinal.wakeAll();
             waitB.sleep();
         }
-        for(int j = 0;j<adults + children;++j)
-            t[j].finish();
+        gameover = 1;
+        waitB.wakeAll();
+        waitA.wakeAll();
+        waitFinal.wakeAll();
         lock.release();
+        //for(int j =0; j<adults + children; ++j){
+        //t[j].join();
+        //        }
+        System.out.println("Game over");
     }
 
     static void AdultItinerary()
@@ -94,11 +102,12 @@ indicates that an adult has rowed the boat across to Molokai
         lock.acquire();
         numAdultAToSee += 1;
         lock.release();
-        while(true){
+        while(gameover == 0){
             lock.acquire();
             if(side == 0){
-                while(boatSide != 0 && numChildAToSee>=2)
+                while((boatSide != 0 || numChildAToSee>=2) && gameover == 0)
                     waitA.sleep();
+                if(gameover==1)break;
                 numAdultA--;
                 numAdultAToSee--;
                 numAdultBToSee++;
@@ -107,10 +116,13 @@ indicates that an adult has rowed the boat across to Molokai
                 bg.AdultRowToMolokai();
 
                 waitB.wakeAll();
+                waitFinal.sleep();
+                side = 1;
             }
             else if(side == 1){
-                while(boatSide !=1 && numChildBToSee>=1)
+                while((boatSide !=1 || numChildBToSee>=1) && gameover == 0)
                     waitB.sleep();
+                if(gameover==1)break;
                 numAdultA ++;
                 numAdultAToSee++;
                 numAdultBToSee--;
@@ -118,6 +130,7 @@ indicates that an adult has rowed the boat across to Molokai
                 boatSide = 0;
                 bg.AdultRowToOahu();
                 waitA.wakeAll();
+                side = 0;
             }
             lock.release();
         }
@@ -133,6 +146,7 @@ indicates that an adult has rowed the boat across to Molokai
         if(num == 1){
             boatSide = 1;
             waitB.wakeAll();
+            waitFinal.sleep();
         }
     }
 
@@ -144,7 +158,9 @@ indicates that an adult has rowed the boat across to Molokai
 
         boatSide = 1;
         waitB.wakeAll();
-        //System.out.println("receive invite " + KThread.currentThread().getName() + " " + numChildA);
+        //System.out.println("sleep");
+        waitFinal.sleep();
+        //System.out.println("wake");
     }
 
     static void ChildItinerary()
@@ -157,13 +173,13 @@ indicates that an adult has rowed the boat across to Molokai
         lock.release();
 
         int side = 0;
-        while(true){
+        while(gameover==0){
 //        System.out.println(KThread.currentThread().getName() +" "+ numChildA + " " + numChildAToSee);
             lock.acquire();
             if(side == 0){
-                while(boatSide == 1 || boatSide == 3 || (numChildAToSee == 1 && numAdultAToSee>0) || numChildAToSee == 1)
+                while(( boatSide == 1 || boatSide == 3 || (numChildAToSee == 1 && numAdultAToSee>0) || numChildAToSee == 1 ) && gameover==0)
                     waitA.sleep();
-                start = 1;
+                if(gameover==1) break;
                 if(boatSide==2){
                     boatSide = 3;
                     sendChildToMolokai(2);
@@ -177,8 +193,10 @@ indicates that an adult has rowed the boat across to Molokai
                 side = 1;
             }
             else if(side == 1){
-                while(boatSide!=1)
+                while((boatSide!=1) && gameover == 0){
                     waitB.sleep();
+                }
+                if(gameover==1) break;
                 bg.ChildRowToOahu();
                 boatSide = 0;
 

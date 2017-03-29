@@ -493,11 +493,11 @@ public class KThread {
     public static void selfTest() {
         Lib.debug(dbgThread, "Enter KThread.selfTest");
         PriorityScheduler.selfTest();
+        Boat a = new Boat();
+        a.selfTest();
         //testCondition();
         //Alarm.selfTest();
         //Communicator.selfTest();
-        Boat a = new Boat();
-        a.selfTest();
     }
 
     private static final char dbgThread = 't';

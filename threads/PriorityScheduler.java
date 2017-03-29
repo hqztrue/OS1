@@ -331,37 +331,49 @@ public class PriorityScheduler extends Scheduler {
 
     }
 
-	public void selfTest(){
+	public void Testself(){
+
+        boolean intStatus = Machine.interrupt().disable();
+
 		int N = 50;
-		KThread[] threads = new KThreads[N];
+		KThread[] threads = new KThread[N];
 		for (int i=0;i<N;++i)threads[i] = new KThread();
-		ThreadQueue[] queues = new ThreadQueue[N];
+		ThreadQueue[] queues = new PriorityQueue[N];
 		for (int i=0;i<N;++i)queues[i] = newThreadQueue(true);
-		for (int i=0;i<8;++i)queues[i].waitForAccess(thread[i]);
-		for (int i=0;i<8;++i)setPriority(thread[i], 4);
+		for (int i=0;i<8;++i)queues[i].waitForAccess(threads[i]);
+		for (int i=0;i<8;++i)setPriority(threads[i], 4);
 		//System.out.println("test 1");
-		//for (int i=0;i<8;++i)System.out.println(i + "" + getEffectivePriority(thread[i]));
-		for (int i=0;i<8;++i)Lib.assertTrue(getEffectivePriority(thread[i]) == 4);
-		for (int i=0;i<8;++i)setPriority(thread[i + 8], i);
-		for (int i=0;i<8;++i)queues[i].acquire(thread[i+8]);
+		//for (int i=0;i<8;++i)System.out.println(i + "" + getEffectivePriority(threads[i]));
+		for (int i=0;i<8;++i)Lib.assertTrue(getEffectivePriority(threads[i]) == 4);
+		for (int i=0;i<8;++i)setPriority(threads[i + 8], i);
+		for (int i=0;i<8;++i)queues[i].acquire(threads[i+8]);
 		//System.out.println("test 2");
-		//for (int i=0;i<8;++i)System.out.println(i + "" + getEffectivePriority(thread[i]));
-		for (int i=0;i<8;++i)Lib.assertTrue(getEffectivePriority(thread[i + 8]) == max(4, i));
-		for (int i=0;i<8;++i)Lib.assertTrue(getEffectivePriority(thread[i]) == 4);
-		/*{
-			for (int i=7;i>0;--i)queues[i-1].waitForAccess(thread[i + 8]);
-			for (int i=0;i<8;++i)Lib.assertTrue(getEffectivePriority(queues[i].nextThread())==7);
+		//for (int i=0;i<8;++i)System.out.println(i + "" + getEffectivePriority(threads[i]));
+		for (int i=0;i<8;++i)Lib.assertTrue(getEffectivePriority(threads[i + 8]) == (i>=4?i:4));
+		for (int i=0;i<8;++i)Lib.assertTrue(getEffectivePriority(threads[i]) == 4);
+		{
+			for (int i=7;i>0;--i)queues[i-1].waitForAccess(threads[i + 8]);
+			for (int i=0;i<7;++i){
+                //System.out.println("haha"+(((PriorityQueue)queues[i]).pickNextThread().getEffectivePriority()));
+                Lib.assertTrue((((PriorityQueue)queues[i]).pickNextThread().getEffectivePriority())==7);
+            }
 			System.out.println("test end 1");
+	Machine.interrupt().restore(intStatus);
 			return;
-		}*/
+		}
 		//for (int i=0;i<8;++i)System.out.println(i + "" + );
 		//System.out.println("test 3");
-		for (int i=0;i<8;++i)thread[i + 8].release(queues[i]);
-		for (int i=0;i<8;++i)Lib.assertTrue(getEffectivePriority(thread[i + 8]) == i);
+		/*for (int i=0;i<8;++i)(getThreadState(threads[i + 8])).release((PriorityQueue)queues[i]);
+		for (int i=0;i<8;++i)Lib.assertTrue(getEffectivePriority(threads[i + 8]) == i);
 		for (int i=0;i<8;++i)Lib.assertTrue(getEffectivePriority(queues[i].nextThread())==4);
-		//for (int i=0;i<16;++i)System.out.println(i + "" + getEffectivePriority(thread[i]));
+		//for (int i=0;i<16;++i)System.out.println(i + "" + getEffectivePriority(threads[i]));
 		System.out.println("test end");
+	Machine.interrupt().restore(intStatus);*/
 	}
+    public static void selfTest(){
+        PriorityScheduler a = new PriorityScheduler();
+        a.Testself();
+    }
 }
 
 
