@@ -1,6 +1,7 @@
 package nachos.threads;
 
 import nachos.machine.*;
+import java.util.*;
 
 /**
  * A <i>communicator</i> allows threads to synchronously exchange 32-bit
@@ -22,6 +23,38 @@ public class Communicator {
 		can_write = true;
     }
 
+    private static class SpeakerWriterTester implements Runnable {
+        int which;
+        Communicator tester;
+        SpeakerWriterTester(int which, Communicator tester) {
+            this.which = which;
+            this.tester = tester;
+        }
+
+        public void run() {
+            if(which %2 == 0){
+                for(int i = 0; i<2; ++i){
+                    tester.speak(which * 100 + i);
+                }
+            }
+            else{
+                for(int i = 0; i<2; ++i)
+                    tester.listen();
+            }
+        }
+    }
+
+    public static void selfTest(){
+        Communicator tester = new Communicator();
+        ArrayList<KThread> a = new ArrayList<KThread>();
+        for(int i = 0;i<10;++i){
+            a.add(new KThread(new SpeakerWriterTester(i, tester)).setName("forked thread2"));
+            a.get(i).fork();
+        }
+        for(int i = 0;i<10;++i)
+            a.get(i).join();
+    }
+
     /**
      * Wait for a thread to listen through this communicator, and then transfer
      * <i>word</i> to the listener.
@@ -39,6 +72,8 @@ public class Communicator {
 			speaker.sleep();
 			--nspeaker;
 		}
+
+        Lib.debug('c', " speak " + word);
 		word_trans = word;
 		can_write = false;
 		listener.wake();
@@ -59,7 +94,9 @@ public class Communicator {
 			listener.sleep();
 			--nlistener;
 		}
+
 		int word = word_trans;
+        Lib.debug('c', " listen " + word);
 		can_write = true;
 		speaker.wake();
 		lock.release();
@@ -68,6 +105,6 @@ public class Communicator {
 	private Lock lock;
 	private Condition speaker;
 	private Condition listener;
-	private int word_trans, nlistener, nspeaker, ;
+	private int word_trans, nlistener, nspeaker;
 	private boolean can_write;
 }
