@@ -7,7 +7,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.*;
 import java.lang.Math;
-import java.util.PriorityQueue;
+//import java.util.PriorityQueue;
 
 /**
  * A scheduler that chooses threads based on their priorities.
@@ -67,8 +67,7 @@ public class PriorityScheduler extends Scheduler {
                 priority <= priorityMaximum);
 
         ThreadState state = getThreadState(thread);
-        if (priority != state.getPriority())
-            state.setPriority(priority);
+        if (priority != state.getPriority())state.setPriority(priority);
     }
 
     public boolean increasePriority() {
@@ -184,6 +183,7 @@ public class PriorityScheduler extends Scheduler {
         protected class TComparator implements Comparator<ThreadState>{
             private PriorityQueue priorityQueue;
             public TComparator(PriorityQueue q){
+
                 priorityQueue = q;
             }
             public int compare(ThreadState t1, ThreadState t2){
@@ -302,8 +302,11 @@ public class PriorityScheduler extends Scheduler {
          */
         public void acquire(PriorityQueue waitQueue) {
             // implement me
-            if (waitQueue.currentThread != null)
+			//Lib.assertTrue(waitQueue.waitQueue.isEmpty());
+            if (waitQueue.currentThread != null){
+				//assert(false);
                 getThreadState(waitQueue.currentThread).release(waitQueue);
+			}
             waitQueue.currentThread = this.thread;
             waitQueue.waitQueue.remove(this);
             acquired.add(waitQueue);
@@ -327,4 +330,38 @@ public class PriorityScheduler extends Scheduler {
         private HashMap<PriorityQueue, Long> waiting = new HashMap<PriorityQueue,Long>();
 
     }
+
+	public void selfTest(){
+		int N = 50;
+		KThread[] threads = new KThreads[N];
+		for (int i=0;i<N;++i)threads[i] = new KThread();
+		ThreadQueue[] queues = new ThreadQueue[N];
+		for (int i=0;i<N;++i)queues[i] = newThreadQueue(true);
+		for (int i=0;i<8;++i)queues[i].waitForAccess(thread[i]);
+		for (int i=0;i<8;++i)setPriority(thread[i], 4);
+		//System.out.println("test 1");
+		//for (int i=0;i<8;++i)System.out.println(i + "" + getEffectivePriority(thread[i]));
+		for (int i=0;i<8;++i)Lib.assertTrue(getEffectivePriority(thread[i]) == 4);
+		for (int i=0;i<8;++i)setPriority(thread[i + 8], i);
+		for (int i=0;i<8;++i)queues[i].acquire(thread[i+8]);
+		//System.out.println("test 2");
+		//for (int i=0;i<8;++i)System.out.println(i + "" + getEffectivePriority(thread[i]));
+		for (int i=0;i<8;++i)Lib.assertTrue(getEffectivePriority(thread[i + 8]) == max(4, i));
+		for (int i=0;i<8;++i)Lib.assertTrue(getEffectivePriority(thread[i]) == 4);
+		/*{
+			for (int i=7;i>0;--i)queues[i-1].waitForAccess(thread[i + 8]);
+			for (int i=0;i<8;++i)Lib.assertTrue(getEffectivePriority(queues[i].nextThread())==7);
+			System.out.println("test end 1");
+			return;
+		}*/
+		//for (int i=0;i<8;++i)System.out.println(i + "" + );
+		//System.out.println("test 3");
+		for (int i=0;i<8;++i)thread[i + 8].release(queues[i]);
+		for (int i=0;i<8;++i)Lib.assertTrue(getEffectivePriority(thread[i + 8]) == i);
+		for (int i=0;i<8;++i)Lib.assertTrue(getEffectivePriority(queues[i].nextThread())==4);
+		//for (int i=0;i<16;++i)System.out.println(i + "" + getEffectivePriority(thread[i]));
+		System.out.println("test end");
+	}
 }
+
+
