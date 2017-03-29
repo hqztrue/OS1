@@ -5,28 +5,30 @@ public class Boat
 {
     static BoatGrader bg;
     static int numChildA, numChildB, numAdultA, numAdultB;
-    static int boatSide, hasPilot, start = 0;
+    static int boatSide, start = 0;
+    //boatSide 0: A, 1: B ,2:in Use
 
-    final static Lock lockA = new Lock();//lock of A
-    final static Condition2 HasAdult  = new Condition2(lockA);
-    final static Condition2 HasBoat  = new Condition2(lockA);
-    final static Condition2 waitRider  = new Condition2(lockA);
-
-    final static Lock lockB = new Lock();//lock of B
-    final static Condition2 ChildPilotBack  = new Condition2(lockB);
+    final static Lock lock = new Lock();//lock of A
+    final static Condition HasAdult  = new Condition(lock);
+    final static Condition HasBoat  = new Condition(lock);
+    final static Condition waitRider  = new Condition(lock);
+    final static Condition ChildPilotBack  = new Condition(lock);
     
     public static void selfTest()
     {
         BoatGrader b = new BoatGrader();
 
-        //System.out.println("\n ***Testing Boats with only 2 children***");
+        System.out.println("\n ***Testing Boats with only 2 children***");
         //begin(0, 2, b);
 
-        //System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
+        System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
         //begin(1, 2, b);
 
         System.out.println("\n ***Testing Boats with 3 children, 3 adults***");
-        begin(0, 3, b);
+        //begin(3, 3, b);
+
+        System.out.println("\n ***Testing Boats with 3 children, 3 adults***");
+        begin(10, 4, b);
     }
 
     public static void begin( int adults, int children, BoatGrader b )
@@ -76,31 +78,41 @@ example:
 bg.AdultRowToMolokai();
 indicates that an adult has rowed the boat across to Molokai
 */
-        lockA.acquire();
-        while(numChildA>=2 || boatSide == 1){
+        lock.acquire();
+        while(numChildA>=2 || boatSide != 0){
+            //System.out.println(boatSide + " " + KThread.currentThread().getName());
             HasAdult.sleep();
         }
-
-        lockB.acquire();
+        //System.out.println(boatSide + " " + KThread.currentThread().getName());
         numAdultA--;
         numAdultB++;
         boatSide = 1;
         bg.AdultRowToMolokai();
         ChildPilotBack.wakeAll();
-        lockB.release();
-        lockA.release();
+        lock.release();
     }
 
     static void sendChildToMolokai(int num){
-        lockB.acquire();
         numChildA -= num;
         bg.ChildRowToMolokai();
         if(num == 2)
             bg.ChildRideToMolokai();
         numChildB += num;
+        if(num == 1){
+            boatSide = 1;
+            ChildPilotBack.wakeAll();
+        }
+    }
+
+    static void sendInvite(){
+        //System.out.println("send invite " + KThread.currentThread().getName() + " " + numChildA);
+        boatSide = 2;
+        HasBoat.wake();
+        waitRider.sleep();
+
         boatSide = 1;
         ChildPilotBack.wakeAll();
-        lockB.release();
+        //System.out.println("receive invite " + KThread.currentThread().getName() + " " + numChildA);
     }
 
     static void ChildItinerary()
@@ -110,55 +122,55 @@ indicates that an adult has rowed the boat across to Molokai
         int side = 0;
         while(true){
             if(side == 0){
-                lockA.acquire();
-                if(start==1 && hasPilot==0)
+                lock.acquire();
+                while(start==1 && ( boatSide == 1 || boatSide == 3 || (numChildA == 1 && numAdultA>0)) ){
                     HasBoat.sleep();
+                }
                 start = 1;
-                if(hasPilot==1){
-                    hasPilot = 0;
+                if(boatSide==2){
+                    boatSide = 3;
                     sendChildToMolokai(2);
                     waitRider.wake();
                 }else{
                     if(numChildA == 1){
-                        if(numAdultA==0)
+                        if(numAdultA==0){
                             sendChildToMolokai(1);
-                        else
-                            HasAdult.wake();
+                        }else
+                            side = -1;
                     }
                     else if(numChildA>1){
-                        hasPilot = 1;
-                        HasBoat.wake();
-                        waitRider.sleep();
+                        sendInvite();
                     }
                 }
-                lockA.release();
-                if(numChildA == 0 && numAdultA == 0){
+                if(side == -1){
+                    HasAdult.wake();
+                }else
+                    side = 1;
+                lock.release();
+                if(numChildA == 0 && numAdultA == 0)
                     break;
-                }
-                side = 1;
             }
             else if(side == 1){
-                lockB.acquire();
-                while(boatSide==0)
+                lock.acquire();
+                while(boatSide!=1){
                     ChildPilotBack.sleep();
-                lockA.acquire();
-                System.out.println(numChildA + " " + numAdultA);
+                }
                 if(numChildA == 0 && numAdultA == 0){
-                    lockA.release();
+                    lock.release();
                     break;
                 }
+
                 numChildB-=1;
                 bg.ChildRowToOahu();
                 boatSide = 0;
+
                 numChildA+=1;
-                if(numChildA == 1){
+                //System.out.println("haha " + boatSide + " "+ numChildA + " " + KThread.currentThread().getName());
+                if(numChildA == 1)
                     HasAdult.wake();
-                }else{
-                    hasPilot = 1;
-                    HasBoat.wake();
-                }
-                lockA.release();
-                lockB.release();
+                else
+                    HasBoat.wakeAll();
+                lock.release();
                 side = 0;
             }
         }

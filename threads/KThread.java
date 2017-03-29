@@ -492,9 +492,11 @@ public class KThread {
 
     public static void selfTest() {
         Lib.debug(dbgThread, "Enter KThread.selfTest");
-        testCondition();
-        Alarm.selfTest();
-        Communicator.selfTest();
+        //testCondition();
+        //Alarm.selfTest();
+        //Communicator.selfTest();
+        Boat a = new Boat();
+        a.selfTest();
     }
 
     private static final char dbgThread = 't';
