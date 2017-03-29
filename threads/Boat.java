@@ -13,22 +13,23 @@ public class Boat
     final static Condition2 waitB  = new Condition2(lock);
     final static Condition2 waitRider  = new Condition2(lock);
     final static Condition2 waitFinal  = new Condition2(lock);
+    final static Condition2 waitC  = new Condition2(lock);
 
     public static void selfTest()
     {
         BoatGrader b = new BoatGrader();
 
-        //System.out.println("\n ***Testing Boats with only 2 children***");
-        //begin(0, 2, b);
+        System.out.println("\n ***Testing Boats with only 2 children***");
+        begin(0, 2, b);
 
         System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
-        begin(5, 4, b);
+        begin(3, 3, b);
 
-        //System.out.println("\n ***Testing Boats with 3 children, 3 adults***");
-        //begin(3, 3, b);
+//        System.out.println("\n ***Testing Boats with 3 children, 3 adults***");
+//        begin(3, 3, b);
 
-        //System.out.println("\n ***Testing Boats with 10 children, 4 adults***");
-        //begin(10, 4, b);
+//        System.out.println("\n ***Testing Boats with 5 children, 4 adults***");
+//        begin(5, 4, b);
 
 //        System.out.println("\n ***Testing Boats with 20 children, 20 adults***");
 //        begin(20, 20, b);
@@ -37,6 +38,9 @@ public class Boat
     public static void begin( int adults, int children, BoatGrader b )
     {
         boatSide = 0;
+        gameover = 0;
+        lock.acquire();
+        lock.release();
         // Store the externally generated autograder in a class
         // variable to be accessible by children.
         bg = b;
@@ -72,19 +76,25 @@ public class Boat
 
         lock.acquire();
         while(numAdultA>0 || numChildA>0){
-            //System.out.println(numAdultA + " " + numChildA);
             waitFinal.wakeAll();
-            waitB.sleep();
+            waitC.sleep();
         }
         gameover = 1;
         waitB.wakeAll();
         waitA.wakeAll();
         waitFinal.wakeAll();
         lock.release();
-        //for(int j =0; j<adults + children; ++j){
-        //t[j].join();
-        //        }
+        for(int j =0; j<adults + children; ++j){
+            t[j].join();
+        }
         System.out.println("Game over");
+    }
+
+    static void test(){
+        System.out.println("sleep");
+        waitC.wakeAll();
+        waitFinal.sleep();
+        System.out.println("wake");
     }
 
     static void AdultItinerary()
@@ -105,9 +115,14 @@ indicates that an adult has rowed the boat across to Molokai
         while(gameover == 0){
             lock.acquire();
             if(side == 0){
-                while((boatSide != 0 || numChildAToSee>=2) && gameover == 0)
+                while((boatSide != 0 || numChildAToSee>=2) && gameover == 0){
                     waitA.sleep();
-                if(gameover==1)break;
+                    test();
+                }
+                if(gameover==1){
+                    lock.release();
+                    break;
+                }
                 numAdultA--;
                 numAdultAToSee--;
                 numAdultBToSee++;
@@ -116,13 +131,20 @@ indicates that an adult has rowed the boat across to Molokai
                 bg.AdultRowToMolokai();
 
                 waitB.wakeAll();
-                waitFinal.sleep();
+                test();
                 side = 1;
             }
             else if(side == 1){
-                while((boatSide !=1 || numChildBToSee>=1) && gameover == 0)
+                System.out.println((boatSide !=1 || numChildBToSee>=1));
+                while((boatSide !=1 || numChildBToSee>=1) && gameover == 0){
                     waitB.sleep();
-                if(gameover==1)break;
+                    test();
+                }
+                if(gameover==1){
+                    lock.release();
+                    break;
+                }
+                test();
                 numAdultA ++;
                 numAdultAToSee++;
                 numAdultBToSee--;
@@ -146,7 +168,7 @@ indicates that an adult has rowed the boat across to Molokai
         if(num == 1){
             boatSide = 1;
             waitB.wakeAll();
-            waitFinal.sleep();
+            test();
         }
     }
 
@@ -158,8 +180,7 @@ indicates that an adult has rowed the boat across to Molokai
 
         boatSide = 1;
         waitB.wakeAll();
-        //System.out.println("sleep");
-        waitFinal.sleep();
+        test();
         //System.out.println("wake");
     }
 
@@ -174,12 +195,18 @@ indicates that an adult has rowed the boat across to Molokai
 
         int side = 0;
         while(gameover==0){
-//        System.out.println(KThread.currentThread().getName() +" "+ numChildA + " " + numChildAToSee);
+//        System.out.println(KThread.currentThread().getName() + " " + boatSide +" "+ numChildA + " " + numChildAToSee);
             lock.acquire();
             if(side == 0){
-                while(( boatSide == 1 || boatSide == 3 || (numChildAToSee == 1 && numAdultAToSee>0) || numChildAToSee == 1 ) && gameover==0)
+                while(( boatSide == 1 || boatSide == 3 || (numChildAToSee == 1 && numAdultAToSee>0)) && gameover==0)
+                {
                     waitA.sleep();
-                if(gameover==1) break;
+                    test();
+                }
+                if(gameover==1) {
+                    lock.release();
+                    break;
+                }
                 if(boatSide==2){
                     boatSide = 3;
                     sendChildToMolokai(2);
@@ -193,10 +220,14 @@ indicates that an adult has rowed the boat across to Molokai
                 side = 1;
             }
             else if(side == 1){
-                while((boatSide!=1) && gameover == 0){
+                while(boatSide!=1 && gameover == 0){
                     waitB.sleep();
+                    test();
                 }
-                if(gameover==1) break;
+                if(gameover==1) {
+                    lock.release();
+                    break;
+                }
                 bg.ChildRowToOahu();
                 boatSide = 0;
 
