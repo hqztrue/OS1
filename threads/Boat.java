@@ -4,31 +4,33 @@ import nachos.ag.BoatGrader;
 public class Boat
 {
     static BoatGrader bg;
-    static int numChildA, numChildB, numAdultA, numAdultB;
+    static int numChildA, numAdultA, numChildAToSee, numAdultAToSee, numChildBToSee, numAdultBToSee;
     static int boatSide, start = 0;
     //boatSide 0: A, 1: B ,2:in Use
 
     final static Lock lock = new Lock();//lock of A
-    final static Condition HasAdult  = new Condition(lock);
-    final static Condition HasBoat  = new Condition(lock);
+    final static Condition waitA  = new Condition(lock);
+    final static Condition waitB  = new Condition(lock);
     final static Condition waitRider  = new Condition(lock);
-    final static Condition ChildPilotBack  = new Condition(lock);
-    
+
     public static void selfTest()
     {
         BoatGrader b = new BoatGrader();
 
         System.out.println("\n ***Testing Boats with only 2 children***");
-        //begin(0, 2, b);
+        begin(0, 2, b);
 
-        System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
+        //System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
         //begin(1, 2, b);
 
-        System.out.println("\n ***Testing Boats with 3 children, 3 adults***");
+        //System.out.println("\n ***Testing Boats with 3 children, 3 adults***");
         //begin(3, 3, b);
 
-        System.out.println("\n ***Testing Boats with 3 children, 3 adults***");
-        begin(10, 4, b);
+        //System.out.println("\n ***Testing Boats with 10 children, 4 adults***");
+        //begin(10, 4, b);
+
+        System.out.println("\n ***Testing Boats with 20 children, 20 adults***");
+        begin(20, 20, b);
     }
 
     public static void begin( int adults, int children, BoatGrader b )
@@ -61,10 +63,20 @@ public class Boat
         }
         numChildA = children;
         numAdultA = adults;
-        for(int j =0; j<adults + children; ++j)
+
+        numChildAToSee = 0;
+        numAdultAToSee = 0;
+        for(int j =0; j<adults + children; ++j){
             t[j].fork();
-        for(int j= 0;j<adults + children; ++j)
-            t[j].join();
+        }
+
+        lock.acquire();
+        while(numAdultA>0 || numChildA>0){
+            waitB.sleep();
+        }
+        for(int j = 0;j<adults + children;++j)
+            t[j].finish();
+        lock.release();
     }
 
     static void AdultItinerary()
@@ -78,40 +90,60 @@ example:
 bg.AdultRowToMolokai();
 indicates that an adult has rowed the boat across to Molokai
 */
+        int side = 0;
         lock.acquire();
-        while(numChildA>=2 || boatSide != 0){
-            //System.out.println(boatSide + " " + KThread.currentThread().getName());
-            HasAdult.sleep();
-        }
-        //System.out.println(boatSide + " " + KThread.currentThread().getName());
-        numAdultA--;
-        numAdultB++;
-        boatSide = 1;
-        bg.AdultRowToMolokai();
-        ChildPilotBack.wakeAll();
+        numAdultAToSee += 1;
         lock.release();
+        while(true){
+            lock.acquire();
+            if(side == 0){
+                while(boatSide != 0 && numChildAToSee>=2)
+                    waitA.sleep();
+                numAdultA--;
+                numAdultAToSee--;
+                numAdultBToSee++;
+
+                boatSide = 1;
+                bg.AdultRowToMolokai();
+
+                waitB.wakeAll();
+            }
+            else if(side == 1){
+                while(boatSide !=1 && numChildBToSee>=1)
+                    waitB.sleep();
+                numAdultA ++;
+                numAdultAToSee++;
+                numAdultBToSee--;
+
+                boatSide = 0;
+                bg.AdultRowToOahu();
+                waitA.wakeAll();
+            }
+            lock.release();
+        }
     }
 
     static void sendChildToMolokai(int num){
         numChildA -= num;
+        numChildAToSee -= num;
+        numChildBToSee += num;
         bg.ChildRowToMolokai();
         if(num == 2)
             bg.ChildRideToMolokai();
-        numChildB += num;
         if(num == 1){
             boatSide = 1;
-            ChildPilotBack.wakeAll();
+            waitB.wakeAll();
         }
     }
 
     static void sendInvite(){
         //System.out.println("send invite " + KThread.currentThread().getName() + " " + numChildA);
         boatSide = 2;
-        HasBoat.wake();
+        waitA.wakeAll();
         waitRider.sleep();
 
         boatSide = 1;
-        ChildPilotBack.wakeAll();
+        waitB.wakeAll();
         //System.out.println("receive invite " + KThread.currentThread().getName() + " " + numChildA);
     }
 
@@ -119,60 +151,44 @@ indicates that an adult has rowed the boat across to Molokai
     {
         bg.initializeChild(); //Required for autograder interface. Must be the first thing called.
         //DO NOT PUT ANYTHING ABOVE THIS LINE. 
+
+        lock.acquire();
+        numChildAToSee += 1;
+        lock.release();
+
         int side = 0;
         while(true){
+//        System.out.println(KThread.currentThread().getName() +" "+ numChildA + " " + numChildAToSee);
+            lock.acquire();
             if(side == 0){
-                lock.acquire();
-                while(start==1 && ( boatSide == 1 || boatSide == 3 || (numChildA == 1 && numAdultA>0)) ){
-                    HasBoat.sleep();
-                }
+                while(boatSide == 1 || boatSide == 3 || (numChildAToSee == 1 && numAdultAToSee>0) || numChildAToSee == 1)
+                    waitA.sleep();
                 start = 1;
                 if(boatSide==2){
                     boatSide = 3;
                     sendChildToMolokai(2);
                     waitRider.wake();
                 }else{
-                    if(numChildA == 1){
-                        if(numAdultA==0){
-                            sendChildToMolokai(1);
-                        }else
-                            side = -1;
-                    }
-                    else if(numChildA>1){
+                    if(numChildAToSee == 1){
+                        sendChildToMolokai(1);
+                    }else if(numChildAToSee>1)
                         sendInvite();
-                    }
                 }
-                if(side == -1){
-                    HasAdult.wake();
-                }else
-                    side = 1;
-                lock.release();
-                if(numChildA == 0 && numAdultA == 0)
-                    break;
+                side = 1;
             }
             else if(side == 1){
-                lock.acquire();
-                while(boatSide!=1){
-                    ChildPilotBack.sleep();
-                }
-                if(numChildA == 0 && numAdultA == 0){
-                    lock.release();
-                    break;
-                }
-
-                numChildB-=1;
+                while(boatSide!=1)
+                    waitB.sleep();
                 bg.ChildRowToOahu();
                 boatSide = 0;
 
                 numChildA+=1;
-                //System.out.println("haha " + boatSide + " "+ numChildA + " " + KThread.currentThread().getName());
-                if(numChildA == 1)
-                    HasAdult.wake();
-                else
-                    HasBoat.wakeAll();
-                lock.release();
+                numChildAToSee+=1;
+                numChildBToSee-=1;
+                waitA.wakeAll();
                 side = 0;
             }
+            lock.release();
         }
     }
 

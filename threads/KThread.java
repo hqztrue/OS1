@@ -492,6 +492,7 @@ public class KThread {
 
     public static void selfTest() {
         Lib.debug(dbgThread, "Enter KThread.selfTest");
+        PriorityScheduler.selfTest();
         //testCondition();
         //Alarm.selfTest();
         //Communicator.selfTest();
