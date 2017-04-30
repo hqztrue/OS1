@@ -143,30 +143,33 @@ public class UserProcess {
     public int readVirtualMemory(int vaddr, byte[] data, int offset,
 				 int length) {
 	Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
-	//if (!validAddr(vaddr))return 0;
-	memoryLock.acquire();
+
+
+
 	byte[] memory = Machine.processor().getMemory();
-	int nread = 0;
-	while (length>0){
-		if (!validAddr(vaddr))break;
-		int vpn = Processor.pageFromAddress(vaddr), voffset = Processor.offsetFromAddress(vaddr);
-		int len = Math.min(Processor.pageSize - voffset, length);
-		TranslationEntry entry = pageTable[vpn];
-		if (entry==null || !entry.valid)break;
-		System.arraycopy(memory, Processor.pageSize * entry.ppn + voffset, data, offset, len);
-		nread += len;
-		length -= len;
-		vaddr += len;
-		offset += len;
-	}
-	memoryLock.release();
-	/*// for now, just assume that virtual addresses equal physical addresses
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+	// for now, just assume that virtual addresses equal physical addresses
 	if (vaddr < 0 || vaddr >= memory.length)
 	    return 0;
 
 	int amount = Math.min(length, memory.length-vaddr);
-	System.arraycopy(memory, vaddr, data, offset, amount);*/
-	return nread;
+	System.arraycopy(memory, vaddr, data, offset, amount);
+
+	return amount;
     }
 
     /**
@@ -199,24 +202,31 @@ public class UserProcess {
     public int writeVirtualMemory(int vaddr, byte[] data, int offset,
 				  int length) {
 	Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
-	memoryLock.acquire();
+
+
 	byte[] memory = Machine.processor().getMemory();
-	int nwrite = 0;
-	while (length>0){
-		if (!validAddr(vaddr))break;
-		int vpn = Processor.pageFromAddress(vaddr), voffset = Processor.offsetFromAddress(vaddr);
-		int len = Math.min(Processor.pageSize - voffset, length);
-		TranslationEntry entry = pageTable[vpn];
-		if (entry==null || !entry.valid || entry.readOnly)break;
-		System.arraycopy(data, offset, memory, Processor.pageSize * entry.ppn + voffset, len);
-		entry.used = entry.dirty = true;
-		nwrite += len;
-		length -= len;
-		vaddr += len;
-		offset += len;
-	}
-	memoryLock.release();
-	return nwrite;
+
+
+
+
+	
+	// for now, just assume that virtual addresses equal physical addresses
+	if (vaddr < 0 || vaddr >= memory.length)
+	    return 0;
+
+	int amount = Math.min(length, memory.length-vaddr);
+
+
+	System.arraycopy(data, offset, memory, vaddr, amount);
+
+
+
+
+
+
+
+
+	return amount;
     }
 
     /**
