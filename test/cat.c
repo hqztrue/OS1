@@ -9,7 +9,6 @@ char buf[BUFSIZE];
 int main(int argc, char** argv)
 {
   int fd, amount;
-
   if (argc!=2) {
     printf("Usage: cat <file>\n");
     return 1;
@@ -17,7 +16,7 @@ int main(int argc, char** argv)
 
   fd = open(argv[1]);
   if (fd==-1) {
-    printf("Unable to open %s\n", argv[1]);
+    printf("CAT: Unable to open %s\n", argv[1]);
     return 1;
   }
 

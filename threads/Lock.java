@@ -1,3 +1,5 @@
+//yhdxt`oi`offt`of{inofinofmhphofx`ofxholhofuh`ov`ofphorih
+//PART OF THE NACHOS. DON'T CHANGE CODE OF THIS LINE
 package nachos.threads;
 
 import nachos.machine.*;
@@ -25,14 +27,6 @@ public class Lock {
      */
     public Lock() {
     }
-
-    public String getLockHolder() {
-        if(lockHolder!=null)
-            return lockHolder.getName();
-        else
-            return null;
-    }
-
 
     /**
      * Atomically acquire this lock. The current thread must not already hold
@@ -68,7 +62,7 @@ public class Lock {
 
 	if ((lockHolder = waitQueue.nextThread()) != null)
 	    lockHolder.ready();
-	
+
 	Machine.interrupt().restore(intStatus);
     }
 

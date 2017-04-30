@@ -1,120 +1,131 @@
+//yhdxt`oi`offt`of{inofinofmhphofx`ofxholhofuh`ov`ofphorih
+//PART OF THE NACHOS. DON'T CHANGE CODE OF THIS LINE
 package nachos.threads;
 
 import nachos.machine.*;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.*;
 
 /**
  * Uses the hardware timer to provide preemption, and to allow threads to sleep
  * until a certain time.
  */
 public class Alarm {
-    /**
-     * Allocate a new Alarm. Set the machine's timer interrupt handler to this
-     * alarm's callback.
-     *
-     * <p><b>Note</b>: Nachos will not function correctly with more than one
-     * alarm.
-     */
-    public Alarm() {
-	waitQueue = new LinkedList<Semaphore>();
-	Machine.timer().setInterruptHandler(new Runnable() {
-		public void run() { timerInterrupt(); }
-	    });
-    }
+	/**
+	 * Allocate a new Alarm. Set the machine's timer interrupt handler to this
+	 * alarm's callback.
+	 * 
+	 * <p>
+	 * <b>Note</b>: Nachos will not function correctly with more than one alarm.
+	 */
+	public Alarm() {
+		Machine.timer().setInterruptHandler(new Runnable() {
+			public void run() {
+				timerInterrupt();
+			}
+		});
+	}
 
-    /**
-     * The timer interrupt handler. This is called by the machine's timer
-     * periodically (approximately every 500 clock ticks). Causes the current
-     * thread to yield, forcing a context switch if there is another thread
-     * that should be run.
-     */
+	/**
+	 * The timer interrupt handler. This is called by the machine's timer
+	 * periodically (approximately every 500 clock ticks). Causes the current
+	 * thread to yield, forcing a context switch if there is another thread that
+	 * should be run.
+	 */
+	public void timerInterrupt() {
+		boolean intStatue = Machine.interrupt().disable();
 
-    static class Testclass implements Runnable{
-        int which;
-        long time;
-        Testclass(int which, long time){
-            this.which = which;
-            this.time = time;
-        }
-        public void run(){
-            long begin = Machine.timer().getTime();
-            ThreadedKernel.alarm.waitUntil(this.time);
-            long end = Machine.timer().getTime();
-            if(end - begin<this.time){
-                Lib.debug('x', begin + " " + end);
-            }
-	        Lib.assertTrue(end - begin >= this.time);
-        }
-    }
+		WaitThread nextThread;
 
-    public static void selfTest(){
-        Lib.debug('x', "Test alarm");
-        KThread thread1 = new KThread(new Testclass(0, 100)).setName("a");
-        KThread thread2 = new KThread(new Testclass(0, 200)).setName("b");
-        KThread thread3 = new KThread(new Testclass(0, 300)).setName("c");
-        KThread thread4 = new KThread(new Testclass(0, 400)).setName("d");
-        thread1.fork();
-        thread2.fork();
-        thread3.fork();
-        thread4.fork();
-        thread1.join();
-        thread2.join();
-        thread3.join();
-        thread4.join();
-    }
+		while ((nextThread = waitQueue.peek()) != null
+				&& nextThread.wakeTime() <= Machine.timer().getTime()) {
+			waitQueue.poll().thread().ready();
+		}
 
-    public void timerInterrupt() {
-	//KThread.currentThread().yield();
-	//lock.acquire();
-	boolean intStatus = Machine.interrupt().disable();
-	Iterator<Semaphore> it = waitQueue.iterator();
-	Iterator<Long> it1 = waitTimeQueue.iterator();
-	while (it.hasNext()){
-		Long time = it1.next();
-		Semaphore waiter = it.next();
-		if (Machine.timer().getTime() > time){
-			waiter.V();
-			it1.remove();
-			it.remove();
+		Machine.interrupt().restore(intStatue);
+
+		KThread.currentThread().yield();
+	}
+
+	/**
+	 * Put the current thread to sleep for at least <i>x</i> ticks, waking it up
+	 * in the timer interrupt handler. The thread must be woken up (placed in
+	 * the scheduler ready set) during the first timer interrupt where
+	 * 
+	 * <p>
+	 * <blockquote> (current time) >= (WaitUntil called time)+(x) </blockquote>
+	 * 
+	 * @param x
+	 *            the minimum number of clock ticks to wait.
+	 * 
+	 * @see nachos.machine.Timer#getTime()
+	 */
+	public void waitUntil(long x) {
+		long wakeTime = Machine.timer().getTime() + x;
+
+		boolean intStatue = Machine.interrupt().disable();
+
+		waitQueue.add(new WaitThread(wakeTime, KThread.currentThread()));
+
+		KThread.sleep();
+
+		Machine.interrupt().restore(intStatue);
+	}
+
+	private class WaitThread implements Comparable<WaitThread> {
+		WaitThread(long wakeTime, KThread thread) {
+			Lib.assertTrue(Machine.interrupt().disabled());
+
+			this.wakeTime = wakeTime;
+
+			this.thread = thread;
+		}
+
+		public int compareTo(WaitThread waitThread) {
+			if (wakeTime < waitThread.wakeTime)
+				return -1;
+			else if (wakeTime > waitThread.wakeTime)
+				return 1;
+			else
+				return thread.compareTo(waitThread.thread);
+		}
+
+		public long wakeTime() {
+			return wakeTime;
+		}
+
+		public KThread thread() {
+			return thread;
+		}
+
+		long wakeTime;
+		KThread thread;
+	}
+	
+	/**
+	 * Tools for test Alarm
+	 */
+	private static class AlarmTest implements Runnable {
+		private long delay;
+		AlarmTest(long _delay) {
+			delay = _delay;
+		}
+		
+		public void run() {
+			long now = Machine.timer().getTime();
+			System.out.println("Thread starts at " + now);
+			System.out.println("Thread calls waitUtill with delay " + delay);
+			ThreadedKernel.alarm.waitUntil(delay);
+			long newnow = Machine.timer().getTime();
+			System.out.println("Thread recovers at " + newnow + " (" + newnow + ">=" + now + "+" + delay + ")");
 		}
 	}
-	Machine.interrupt().restore(intStatus);
-	//lock.release();
-    }
-
-    /**
-     * Put the current thread to sleep for at least <i>x</i> ticks,
-     * waking it up in the timer interrupt handler. The thread must be
-     * woken up (placed in the scheduler ready set) during the first timer
-     * interrupt where
-     *
-     * <p><blockquote>
-     * (current time) >= (WaitUntil called time)+(x)
-     * </blockquote>
-     *
-     * @param	x	the minimum number of clock ticks to wait.
-     *
-     * @see	nachos.machine.Timer#getTime()
-     */
-    public void waitUntil(long x) {
-	// for now, cheat just to get something working (busy waiting is bad)
-	/*long wakeTime = Machine.timer().getTime() + x;
-	while (wakeTime > Machine.timer().getTime())
-	    KThread.yield();
-	*/
-	//lock.acquire();
-	boolean intStatus = Machine.interrupt().disable();
-	Semaphore waiter = new Semaphore(0);
-	waitQueue.add(waiter);
-	waitTimeQueue.add(Machine.timer().getTime() + x);
-	//lock.release();
-	Machine.interrupt().restore(intStatus);
-	waiter.P();
-    }
-	private List<Semaphore> waitQueue = new LinkedList<Semaphore>();
-	private List<Long> waitTimeQueue = new LinkedList<Long>();
+	public static void selfTest(){
+		KThread[] t = new KThread[10];
+		for(int i = 0; i < 10; i++){
+			t[i] = new KThread(new AlarmTest((long)((i+1) * 100)));
+			t[i].fork();
+		}
+		ThreadedKernel.alarm.waitUntil(100000);
+	}
+	
+	java.util.PriorityQueue<WaitThread> waitQueue = new java.util.PriorityQueue<WaitThread>();
 }
-
-

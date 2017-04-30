@@ -1,3 +1,5 @@
+//yhdxt`oi`offt`of{inofinofmhphofx`ofxholhofuh`ov`ofphorih
+//PART OF THE NACHOS. DON'T CHANGE CODE OF THIS LINE
 package nachos.threads;
 
 import nachos.machine.*;
@@ -34,7 +36,7 @@ import java.util.LinkedList;
  * semantics. When a <tt>wake()</tt> or <tt>wakeAll()</tt> wakes up another
  * thread, the woken thread is simply put on the ready list, and it is the
  * responsibility of the woken thread to reacquire the lock (this reacquire is
- * taken care of in <tt>sleep()</tt>).
+ * taken core of in <tt>sleep()</tt>).
  *
  * <p>
  * By contrast, some implementations of condition variables obey
@@ -84,7 +86,7 @@ public class Condition {
 
 	conditionLock.release();
 	waiter.P();
-	conditionLock.acquire();	
+	conditionLock.acquire();
     }
 
     /**

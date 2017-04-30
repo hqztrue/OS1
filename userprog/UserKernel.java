@@ -62,6 +62,14 @@ public class UserKernel extends ThreadedKernel {
 	while (c != 'q');
 
 	System.out.println("");
+
+    String shellProgram = Machine.getShellProgramName();    
+    //Lib.assertTrue(process.execute("matmult.coff", new String[] { }));
+    UserProcess process = UserProcess.newUserProcess();
+    //Lib.assertTrue(process.execute("cat.coff", new String[]{"cat.coff", "1.py"} ));
+    //Lib.assertTrue(process.execute("test-unlink.coff", new String[]{"test-unlink.coff", "1.py"} ));
+    Lib.assertTrue(process.execute("join.coff", new String[]{"xx.coff", "pp.coff"}));
+    KThread.currentThread().finish();
     }
 
     /**
