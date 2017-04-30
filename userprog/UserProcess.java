@@ -6,7 +6,7 @@ import nachos.userprog.*;
 
 import java.io.EOFException;
 import java.util.*;
-import Math.*;
+import java.lang.Math.*;
 
 /**
  * Encapsulates the state of a user process that is not contained in its
@@ -438,7 +438,8 @@ public class UserProcess {
 		semJoin.V();
 		
 		UserKernel.semProcessID.P();
-		if (--numExistingProcesses == 0)Kernel.kernel.terminate();
+		if (--UserKernel.numExistingProcesses == 0)
+            Kernel.kernel.terminate();
 		UserKernel.semProcessID.V();
 		KThread.finish();
 		return 0;
@@ -480,7 +481,7 @@ public class UserProcess {
 		if (!validAddr(name))return abnormalExit();
 		String name_str = readVirtualMemoryString(name, MAX_STR_LEN);
 		//OpenFile file = Machine.stubFileSystem().open(name_str, flag);
-		OpenFile file = UserKernel.fileSystem().open(name_str, flag);
+		OpenFile file = UserKernel.fileSystem.open(name_str, flag);
 		if (file != null){
 			for (int i=0;i<MAX_NUM_OPEN_FILES;++i)
 				if (fileTable[i]==null){
@@ -534,7 +535,9 @@ public class UserProcess {
 	private int handleUnlink(int name){
 		if (!validAddr(name))return abnormalExit();
 		String name_str = readVirtualMemoryString(name, MAX_STR_LEN);
-		return UserKernel.fileSystem().remove(name_str);
+		if(UserKernel.fileSystem.remove(name_str))
+            return 0;
+        else return -1;
 	}
 
     private static final int
