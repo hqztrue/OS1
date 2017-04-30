@@ -29,7 +29,7 @@ public class UserProcess {
 	pageTable = new TranslationEntry[numPhysPages];
 	{  //can be ignored
 		for (int i=0; i<numPhysPages; i++)
-			pageTable[i] = new TranslationEntry(i,i,false,false,false,false);  //i,i,true,false,false,false
+			pageTable[i] = new TranslationEntry(i,i,true,false,false,false);  //i,i,true,false,false,false
 	}
 	UserKernel.semProcessID.P();
 	processID = UserKernel.nextProcessID++;
@@ -282,7 +282,7 @@ public class UserProcess {
 
 	// and finally reserve 1 page for arguments
 	numPages++;
-	for (int i=numPages_;i<numPages;++i){
+	/*for (int i=numPages_;i<numPages;++i){
 		if (pageTable[i]==null)pageTable[i] = new TranslationEntry(i,i,false,false,false,false);
 		TranslationEntry entry = pageTable[i];
 		UserKernel.semFreePhyPages.P();
@@ -301,7 +301,8 @@ public class UserProcess {
 		//coff.close();
 		unloadSections();
 	    return false;
-	}
+	}*/
+	if (!loadSections())return false;
 
 	// store arguments in last page
 	int entryOffset = (numPages-1)*pageSize;
@@ -347,23 +348,8 @@ public class UserProcess {
 
 	    for (int i=0; i<section.getLength(); i++) {
 			int vpn = section.getFirstVPN()+i;
-			
-			if (pageTable[vpn]==null)pageTable[vpn] = new TranslationEntry(vpn,vpn,false,false,false,false);
-			TranslationEntry entry = pageTable[vpn];
-			UserKernel.semFreePhyPages.P();
-			if (UserKernel.freePhyPages.size()==0){
-				UserKernel.semFreePhyPages.V();
-				coff.close();
-				return false;
-			}
-			int id = UserKernel.freePhyPages.removeFirst();
-			UserKernel.semFreePhyPages.V();
-			entry.valid = true;
-			entry.readOnly = section.isReadOnly();
-			entry.ppn = id;
-			section.loadPage(i, entry.ppn);
-			/*// for now, just assume virtual addresses=physical addresses
-			section.loadPage(i, vpn);*/
+			// for now, just assume virtual addresses=physical addresses
+			section.loadPage(i, vpn);
 	    }
 	}
 	
@@ -374,7 +360,7 @@ public class UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
-		UserKernel.semFreePhyPages.P();
+		/*UserKernel.semFreePhyPages.P();
 		for (int i=0;i<pageTable.length;++i){
 			TranslationEntry entry = pageTable[i];
 			if (entry!=null && entry.valid){
@@ -382,7 +368,7 @@ public class UserProcess {
 				UserKernel.freePhyPages.add(entry.ppn);
 			}
 		}
-		UserKernel.semFreePhyPages.V();
+		UserKernel.semFreePhyPages.V();*/
     }    
 
     /**
