@@ -21,28 +21,316 @@ import java.util.Iterator;
  * ticket.
  *
  * <p>
- * A lottery scheduler must partially solve the priority inversion problem; in
+ * A lottery scheduler must partially solve the Lottery inversion problem; in
  * particular, tickets must be transferred through locks, and through joins.
- * Unlike a priority scheduler, these tickets add (as opposed to just taking
+ * Unlike a Lottery scheduler, these tickets add (as opposed to just taking
  * the maximum).
  */
-public class LotteryScheduler extends PriorityScheduler {
+public class LotteryScheduler extends LotteryScheduler {
     /**
-     * Allocate a new lottery scheduler.
+     * Allocate a new priority scheduler.
      */
     public LotteryScheduler() {
     }
-    
+
     /**
-     * Allocate a new lottery thread queue.
+     * Allocate a new Lottery thread queue.
      *
-     * @param	transferPriority	<tt>true</tt> if this queue should
-     *					transfer tickets from waiting threads
-     *					to the owning thread.
-     * @return	a new lottery thread queue.
+     * @param   transferLottery    <tt>true</tt> if this queue should
+     *                  transfer Lottery from waiting threads
+     *                  to the owning thread.
+     * @return  a new Lottery thread queue.
      */
-    public ThreadQueue newThreadQueue(boolean transferPriority) {
-	// implement me
-	return null;
+    public ThreadQueue newThreadQueue(boolean transferLottery) {
+        return new LotteryQueue(transferLottery);
+    }
+
+    public int getLottery(KThread thread) {
+        Lib.assertTrue(Machine.interrupt().disabled());
+
+        return getThreadState(thread).getLottery();
+    }
+
+    public int getEffectiveLottery(KThread thread) {
+        Lib.assertTrue(Machine.interrupt().disabled());
+
+        return getThreadState(thread).getEffectiveLottery();
+    }
+
+    public void setLottery(KThread thread, int Lottery) {
+        Lib.assertTrue(Machine.interrupt().disabled());
+
+        Lib.assertTrue(Lottery >= LotteryMinimum &&
+                Lottery <= LotteryMaximum);
+
+        ThreadState state = getThreadState(thread);
+        if (Lottery != state.getLottery())state.setLottery(Lottery);
+    }
+
+    public boolean increaseLottery() {
+        boolean intStatus = Machine.interrupt().disable();
+
+        KThread thread = KThread.currentThread();
+
+        int Lottery = getLottery(thread);
+        boolean flag = true;
+        if (Lottery == LotteryMaximum)
+            flag = false;
+        else setLottery(thread, Lottery+1);
+
+        Machine.interrupt().restore(intStatus);
+        return flag;
+    }
+
+    public boolean decreaseLottery() {
+        boolean intStatus = Machine.interrupt().disable();
+
+        KThread thread = KThread.currentThread();
+
+        int Lottery = getLottery(thread);
+        boolean flag = true;
+        if (Lottery == LotteryMinimum)
+            flag = false;
+        else setLottery(thread, Lottery-1);
+
+        Machine.interrupt().restore(intStatus);
+        return flag;
+    }
+
+    /**
+     * The default Lottery for a new thread. Do not change this value.
+     */
+    public static final int LotteryDefault = 1;
+    /**
+     * The minimum Lottery that a thread can have. Do not change this value.
+     */
+    public static final int LotteryMinimum = 0;
+    /**
+     * The maximum Lottery that a thread can have. Do not change this value.
+     */
+    public static final int LotteryMaximum = 7;    
+
+    /**
+     * Return the scheduling state of the specified thread.
+     *
+     * @param   thread  the thread whose scheduling state to return.
+     * @return  the scheduling state of the specified thread.
+     */
+    protected ThreadState getThreadState(KThread thread) {
+        if (thread.schedulingState == null)
+            thread.schedulingState = new ThreadState(thread);
+
+        return (ThreadState) thread.schedulingState;
+    }
+
+    /**
+     * A <tt>ThreadQueue</tt> that sorts threads by Lottery.
+     */
+    protected class LotteryQueue extends ThreadQueue {
+
+        private java.util.Set<ThreadState> waitQueue = new java.util.HashSet<ThreadState>();
+        LotteryQueue(boolean transferLottery) {
+            this.transferLottery = transferLottery;
+        }
+
+        public void waitForAccess(KThread thread) {
+            Lib.assertTrue(Machine.interrupt().disabled());
+            getThreadState(thread).waitForAccess(this);
+        }
+
+        public void acquire(KThread thread) {
+            Lib.assertTrue(Machine.interrupt().disabled());
+            getThreadState(thread).acquire(this);
+        }
+
+        public KThread nextThread() {
+            Lib.assertTrue(Machine.interrupt().disabled());
+            // implement me
+            if (waitQueue.isEmpty())
+                return null;
+            else {
+                acquire(waitQueue.poll().thread);
+                return currentThread;
+            }
+        }
+
+        /**
+         * Return the next thread that <tt>nextThread()</tt> would return,
+         * without modifying the state of this queue.
+         *
+         * @return  the next thread that <tt>nextThread()</tt> would
+         *      return.
+         */
+        protected ThreadState pickNextThread() {
+            // implement me
+            //return waitQueue.peek();
+            int sum = 0;
+            for(ThreadState s: waitQueue){
+                sum += s.getEffectiveLottery();
+            }
+        }
+
+        public void print() {
+            Lib.assertTrue(Machine.interrupt().disabled());
+            // implement me (if you want)
+        }
+
+        /**
+         * <tt>true</tt> if this queue should transfer Lottery from waiting
+         * threads to the owning thread.
+         */
+        public boolean transferLottery;
+        protected KThread currentThread = null;
+    }
+
+    /**
+     * The scheduling state of a thread. This should include the thread's
+     * Lottery, its effective Lottery, any objects it owns, and the queue
+     * it's waiting for, if any.
+     *
+     * @see nachos.threads.KThread#schedulingState
+     */
+    protected class ThreadState {
+        /**
+         * Allocate a new <tt>ThreadState</tt> object and associate it with the
+         * specified thread.
+         *
+         * @param   thread  the thread this state belongs to.
+         */
+        public ThreadState(KThread thread) {
+            this.thread = thread;
+            //setLottery(LotteryDefault);
+            effectiveLottery = Lottery = LotteryDefault;
+        }
+
+        /**
+         * Return the Lottery of the associated thread.
+         *
+         * @return  the Lottery of the associated thread.
+         */
+        public int getLottery() {
+            return Lottery;
+        }
+
+        /**
+         * Return the effective Lottery of the associated thread.
+         *
+         * @return  the effective Lottery of the associated thread.
+         */
+        public int getEffectiveLottery() {
+            // implement me
+            return effectiveLottery;
+        }
+
+        /**
+         * Set the Lottery of the associated thread to the specified value.
+         *
+         * @param   Lottery    the new Lottery.
+         */
+        public void setLottery(int Lottery) {
+            if (this.Lottery == Lottery)return;
+            this.Lottery = Lottery;
+            // implement me
+            calculateEffectiveLottery();
+        }
+
+        public void calculateEffectiveLottery(){
+            int ans = Lottery;
+            for (LotteryQueue q : acquired)
+                if (q.transferLottery){
+                    ThreadState ts = q.pickNextThread();
+                    if (ts != null)ans = ans + ts.getEffectiveLottery(); //Math.max(ans, ts.getEffectiveLottery());
+                }
+            if (ans != effectiveLottery){
+                for (LotteryQueue q : waiting.keySet())
+                    if (q.transferLottery && q.currentThread != null)
+                        getThreadState(q.currentThread).calculateEffectiveLottery();
+            }
+            effectiveLottery = ans;
+        }
+
+        public void waitForAccess(LotteryQueue waitQueue) {
+            // implement me
+            if (!waiting.containsKey(waitQueue)){
+                release(waitQueue);
+                long time = Machine.timer().getTime();
+                waitQueue.waitQueue.add(this);
+                if (waitQueue.currentThread != null)
+                    getThreadState(waitQueue.currentThread).calculateEffectiveLottery();
+            }
+        }
+
+        public void acquire(LotteryQueue waitQueue) {
+            // implement me
+            //Lib.assertTrue(waitQueue.waitQueue.isEmpty());
+            if (waitQueue.currentThread != null){
+                //assert(false);
+                getThreadState(waitQueue.currentThread).release(waitQueue);
+            }
+            waitQueue.currentThread = this.thread;
+            waitQueue.waitQueue.remove(this);
+            acquired.add(waitQueue);
+            calculateEffectiveLottery();
+        }
+
+        public void release(LotteryQueue waitQueue) {
+            if (acquired.remove(waitQueue)) {
+                waitQueue.currentThread = null;
+                calculateEffectiveLottery();
+            }
+        }
+
+        /** The thread with which this object is associated. */    
+        protected KThread thread;
+        /** The Lottery of the associated thread. */
+        protected int Lottery;
+        protected int effectiveLottery;
+        private HashSet<LotteryQueue> acquired = new HashSet<LotteryQueue>();
+
+    }
+
+    public void Testself(){
+
+        boolean intStatus = Machine.interrupt().disable();
+
+        int N = 50;
+        KThread[] threads = new KThread[N];
+        for (int i=0;i<N;++i)threads[i] = new KThread();
+        ThreadQueue[] queues = new LotteryQueue[N];
+        for (int i=0;i<N;++i)queues[i] = newThreadQueue(true);
+        for (int i=0;i<8;++i)queues[i].waitForAccess(threads[i]);
+        for (int i=0;i<8;++i)setLottery(threads[i], 4);
+        //System.out.println("test 1");
+        //for (int i=0;i<8;++i)System.out.println(i + "" + getEffectiveLottery(threads[i]));
+        for (int i=0;i<8;++i)Lib.assertTrue(getEffectiveLottery(threads[i]) == 4);
+        for (int i=0;i<8;++i)setLottery(threads[i + 8], i);
+        for (int i=0;i<8;++i)queues[i].acquire(threads[i+8]);
+        //System.out.println("test 2");
+        //for (int i=0;i<8;++i)System.out.println(i + "" + getEffectiveLottery(threads[i]));
+        for (int i=0;i<8;++i)Lib.assertTrue(getEffectiveLottery(threads[i + 8]) == (i>=4?i:4));
+        for (int i=0;i<8;++i)Lib.assertTrue(getEffectiveLottery(threads[i]) == 4);
+        {
+            for (int i=7;i>0;--i)queues[i-1].waitForAccess(threads[i + 8]);
+            for (int i=0;i<7;++i){
+                //System.out.println("haha"+(((LotteryQueue)queues[i]).pickNextThread().getEffectiveLottery()));
+                Lib.assertTrue((((LotteryQueue)queues[i]).pickNextThread().getEffectiveLottery())==7);
+            }
+            System.out.println("test end 1");
+    Machine.interrupt().restore(intStatus);
+            return;
+        }
+        //for (int i=0;i<8;++i)System.out.println(i + "" + );
+        //System.out.println("test 3");
+        /*for (int i=0;i<8;++i)(getThreadState(threads[i + 8])).release((LotteryQueue)queues[i]);
+        for (int i=0;i<8;++i)Lib.assertTrue(getEffectiveLottery(threads[i + 8]) == i);
+        for (int i=0;i<8;++i)Lib.assertTrue(getEffectiveLottery(queues[i].nextThread())==4);
+        //for (int i=0;i<16;++i)System.out.println(i + "" + getEffectiveLottery(threads[i]));
+        System.out.println("test end");
+    Machine.interrupt().restore(intStatus);*/
+    }
+    public static void selfTest(){
+        LotteryScheduler a = new LotteryScheduler();
+        a.Testself();
     }
 }
+
