@@ -27,9 +27,10 @@ public class UserProcess {
     public UserProcess() {
 	int numPhysPages = Machine.processor().getNumPhysPages();
 	pageTable = new TranslationEntry[numPhysPages];
-	for (int i=0; i<numPhysPages; i++)
-	    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
-	
+	{  //can be ignored
+		for (int i=0; i<numPhysPages; i++)
+			pageTable[i] = new TranslationEntry(i,i,false,false,false,false);  //i,i,true,false,false,false
+	}
 	UserKernel.semProcessID.P();
 	processID = UserKernel.nextProcessID++;
 	++UserKernel.numExistingProcesses;
@@ -282,10 +283,13 @@ public class UserProcess {
 	// and finally reserve 1 page for arguments
 	numPages++;
 	for (int i=numPages_;i<numPages;++i){
+		if (pageTable[i]==null)pageTable[i] = new TranslationEntry(i,i,false,false,false,false);
 		TranslationEntry entry = pageTable[i];
 		UserKernel.semFreePhyPages.P();
 		if (UserKernel.freePhyPages.size()==0){
 			UserKernel.semFreePhyPages.V();
+			coff.close();
+			unloadSections();
 			return false;
 		}
 		int id = UserKernel.freePhyPages.removeFirst();
@@ -293,8 +297,11 @@ public class UserProcess {
 		entry.valid = true;
 		entry.ppn = id;
 	}
-	if (!loadSections())
+	if (!loadSections()){
+		//coff.close();
+		unloadSections();
 	    return false;
+	}
 
 	// store arguments in last page
 	int entryOffset = (numPages-1)*pageSize;
@@ -341,10 +348,12 @@ public class UserProcess {
 	    for (int i=0; i<section.getLength(); i++) {
 			int vpn = section.getFirstVPN()+i;
 			
+			if (pageTable[vpn]==null)pageTable[vpn] = new TranslationEntry(vpn,vpn,false,false,false,false);
 			TranslationEntry entry = pageTable[vpn];
 			UserKernel.semFreePhyPages.P();
 			if (UserKernel.freePhyPages.size()==0){
 				UserKernel.semFreePhyPages.V();
+				coff.close();
 				return false;
 			}
 			int id = UserKernel.freePhyPages.removeFirst();
@@ -450,7 +459,7 @@ public class UserProcess {
 		}
 		UserProcess child = new UserProcess();
 		childs.put(child.processID, child);
-		child.execute(name_str, args);
+		if (!child.execute(name_str, args))return -1;
 		return child.processID;
 	}
 	
